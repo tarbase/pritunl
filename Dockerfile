@@ -1,22 +1,30 @@
-FROM ubuntu:16.04
+FROM alpine:3.5
 MAINTAINER tarbase <hello@tarbase.com>
 
-# Install the pritunl repository and public key (CF8E292A)
-RUN echo "deb http://repo.pritunl.com/stable/apt xenial main" > /etc/apt/sources.list.d/pritunl.list &&\
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv 7568D9BB55FF9E5287D586017AE645C0CF8E292A
+ENV VERSION="1.26.1231.99"
 
-# Update the package catalog and upgrade any existing packages
-RUN apt-get update -q &&\
-    apt-get upgrade -y -q
+RUN apk --no-cache add --update go git bzr wget py2-pip \
+    gcc python python-dev musl-dev linux-headers libffi-dev openssl-dev \
+    py-setuptools openssl procps ca-certificates openvpn
 
-# Install the pritunl package
-RUN apt-get -y install pritunl
+RUN export GOPATH=/go \
+    && go get github.com/pritunl/pritunl-dns \
+    && go get github.com/pritunl/pritunl-monitor \
+    && go get github.com/pritunl/pritunl-web \
+    && cp /go/bin/* /usr/bin/
 
-# Don't forget to cleanup after our ourselves
-RUN apt-get clean &&\
-    apt-get -y -q autoclean &&\
-    apt-get -y -q autoremove &&\
-    rm -rf /tmp/*
+RUN wget https://github.com/pritunl/pritunl/archive/${VERSION}.tar.gz \
+    && tar zxvf ${VERSION}.tar.gz \
+    && cd pritunl-${VERSION} \
+    && python setup.py build \
+    && pip install -r requirements.txt \
+    && python2 setup.py install \
+    && cd .. \
+    && rm -rf *${VERSION}* \
+    && rm -rf /tmp/* /var/cache/apk/* \
+    && rm -rf /go
+
+RUN apk del go git bzr wget gcc python-dev musl-dev linux-headers libffi-dev openssl-dev
 
 ADD bin/start-pritunl.sh /usr/bin/start-pritunl.sh
 
