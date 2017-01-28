@@ -14,7 +14,7 @@ Pritunl is a distributed enterprise VPN server built using the OpenVPN protocol.
 
 ### Single node VPN using local MongoDB container:
 
-1. Clone this repo https://github.com/tarbase/docker-pritunl
+1. Clone this repo: `https://github.com/tarbase/docker-pritunl`
 2. Create the local MongoDB data directory (data volume): `mkdir -p /opt/mongo`
 3. Run `docker-compose up`
 
