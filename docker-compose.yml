@@ -1,0 +1,23 @@
+version: "2"
+services:
+  mongo:
+    image: mongo:3.2
+    networks:
+      - pritunl
+    ports:
+      - "27017:27017"
+    volumes:
+      - /opt/mongo:/data/db
+  pritunl:
+    build: .
+    image: pritunl
+    networks:
+      - pritunl
+    ports:
+      - "80:80"
+      - "443:443"
+      - "1194/udp:1194/udp"
+    privileged: true
+    restart: always
+networks:
+  pritunl:
