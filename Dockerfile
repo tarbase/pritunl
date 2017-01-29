@@ -18,12 +18,17 @@ RUN apt-get clean &&\
     apt-get -y -q autoremove &&\
     rm -rf /tmp/*
 
+RUN apt-get install -y wget
+
+RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 &&\
+    chmod +x /usr/local/bin/dumb-init
+
 ADD bin/start-pritunl.sh /usr/bin/start-pritunl.sh
 
 EXPOSE 1194
 EXPOSE 443
 EXPOSE 80
 
-ENTRYPOINT ["/usr/bin/start-pritunl.sh"]
+ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/usr/bin/start-pritunl.sh"]
 
 CMD ["/usr/bin/tail", "-f", "/var/log/pritunl.log"]
