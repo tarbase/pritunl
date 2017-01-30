@@ -18,7 +18,7 @@ RUN apt-get clean &&\
     apt-get -y -q autoremove &&\
     rm -rf /tmp/*
 
-ADD bin/start-pritunl.sh /usr/bin/start-pritunl.sh
+COPY bin/start-pritunl.sh /usr/bin/start-pritunl.sh
 
 EXPOSE 1194
 EXPOSE 443
