@@ -1,46 +1,75 @@
-# docker pritunl
+# Pritunl for Docker
 
-Run Pritunl in a docker container.
+A Pritunl image that can be used to start a Pritunl server.
 
-Pritunl is a distributed enterprise VPN server built using the OpenVPN protocol.
+## What is Pritunl?
 
-## Features
+> Pritunl is the most secure VPN server available and the only VPN server to offer up to five layers of authentication.
 
-* VPN out of the box using `docker-compose`.
-* Support for external MongoDB allowing [multi host](https://docs.pritunl.com/docs/mutli-host-servers) setup.
-
+*from* [pritunl.com](https://pritunl.com/)
 
 ## Usage
 
-### Single node VPN using local MongoDB container:
+### Creating Volumes
 
-1. Clone this repo: `https://github.com/tarbase/docker-pritunl`
-2. Create the local MongoDB data directory (data volume): `mkdir -p /opt/mongo`
-3. Run `docker-compose up`
+To be able to make all of the Pritunl configurations persistent, a Docker
+volume is required to store the MongoDB data.
 
-> The admin console is now available at `https://<ip>` with username `pritunl`, password `pritunl`.
-
-### Single or multi host VPN using remote MongoDB
-
-1. Make sure that you MongoDB is up and running. (Use https://mlab.com to run a sandbox MongoDB instance)
-2. You will need to change the **MONGODB_URI** bellow to point the remote MongoDB. ([See standard MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/))
-2. Run
+Creating volumes can be done using the `docker` tool. To create a volume use
+the following command:
 
 ```
-  docker run -it --privileged \
-    -p 80:80 \
-    -p 443:443/tcp \
-    -p 1194:1194/udp \
-    -p 1194:1194/tcp \
-    -e MONGODB_URI=mongodb://<dbuser>:<dbpassword>@<dbip>:27017/pritunl \
-    tarbase/docker-pritunl
-```    
+docker volume create --name <VOLUME_NAME>
+```
 
-> The admin console is now available at `https://<ip>` with username `pritunl`, password `pritunl`.
+Two create a volume for the MongoDB data use the following command:
 
+```
+docker volume create --name pritunl_mongodb
+```
 
-## Help
+**Note:** A local folder can also be used instead of a volume. Use the path of
+the folder in place of the volume name.
 
-If you have a specific feature request or if you found a bug, please use GitHub issues. Fork these docs and send a pull request with improvements.
+### Start the Pritunl Server
 
-Feel free to reach out: https://tarbase.com
+Starting the Pritunl server can be done with the folowing command.
+
+```
+docker container run --volume PRITUNL_VOL:/data/mongodb:rw --detach --publish 1194:1194/udp --publish 1194:1194 --publish 443:443 --privileged --device=/dev/net/tun tarbase/pritunl
+```
+
+The Docker options `--privileged` and`--device=/dev/net/tun` are required for
+the container to be able to start.
+
+#### Use a dedicated MongoDB server
+
+To use an external MongoDB server, instead of the internal one, the MongoDB
+address will have to be specified using the environment variable `MONGODB_URI`.
+
+```
+docker container run --env MONGODB_URI=mongodb://address:port/db_name --detach --publish 1194:1194/udp --publish 1194:1194 --publish 443:443 --privileged --device=/dev/net/tun tarbase/pritunl
+```
+
+#### Default credentials
+
+To access the Pritunl administration console open a web browser on your
+computer, and navigate to `https://PRITUNL_ADDRESS`
+
+Login with the following information:
+ * Username: `pritunl`
+ * Password: `pritunl`
+
+### Pritunl Status
+
+The Pritunl server status can be check by looking at the server output using
+the following docker command:
+
+```
+docker container logs CONTAINER_ID
+```
+
+## Authors
+
+See the list of [contributors](https://github.com/tarbase/docker-pritunl/contributors)
+who participated in this project.
