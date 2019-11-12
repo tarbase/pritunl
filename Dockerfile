@@ -1,29 +1,79 @@
-FROM ubuntu:16.04
-MAINTAINER tarbase <hello@tarbase.com>
+FROM debian:buster-slim
 
-# Install the pritunl repository and public key (CF8E292A)
-RUN echo "deb http://repo.pritunl.com/stable/apt xenial main" > /etc/apt/sources.list.d/pritunl.list &&\
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv 7568D9BB55FF9E5287D586017AE645C0CF8E292A
+LABEL \
+  maintainer="Tarbase <hello@tarbase.com>" \
+  vendor="Tarbase" \
+  cmd="docker container run --detach --publish 1194:1194/udp --publish 1194:1194 --publish 443:443 --privileged --device=/dev/net/tun tarbase/pritunl" \
+  params="--env MONGODB_URI=mongodb_address"
 
-# Update the package catalog and upgrade any existing packages
-RUN apt-get update -q &&\
-    apt-get upgrade -y -q
+EXPOSE \
+  443 \
+  1194 \
+  1194/udp
 
-# Install the pritunl package
-RUN apt-get -y install pritunl
+ENV LANG=C.UTF-8
 
-# Don't forget to cleanup after our ourselves
-RUN apt-get clean &&\
-    apt-get -y -q autoclean &&\
-    apt-get -y -q autoremove &&\
-    rm -rf /tmp/*
+COPY files/ /root/
 
-COPY bin/start-pritunl.sh /usr/bin/start-pritunl.sh
+RUN \
+# copy scripts
+  install --owner=root --group=root --mode=0755 --target-directory=/usr/bin /root/scripts/* && \
+# copy tests
+  install --owner=root --group=root --mode=0755 --target-directory=/usr/bin /root/tests/* && \
+# dependencies
+  apt-get -qq update && \
+  dpkg-query --show -f='${Package}\n' > /tmp/dependencies.pre && \
+  apt-get -qq -y --no-install-recommends install \
+    dirmngr \
+    gpg \
+    gpg-agent \
+    > /dev/null 2>&1 && \
+  dpkg-query --show -f='${Package}\n' > /tmp/dependencies.post && \
+# repos
+  echo 'deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main' \
+    > /etc/apt/sources.list.d/mongodb-org-4.2.list && \
+  apt-key adv --keyserver hkp://keyserver.ubuntu.com --receive-keys --recv 0x4b7c549a058f8b6b && \
+  echo 'deb http://repo.pritunl.com/stable/apt buster main' \
+    > /etc/apt/sources.list.d/pritunl.list && \
+  apt-key adv --keyserver hkp://keyserver.ubuntu.com --receive-keys --recv 0x7ae645c0cf8e292a && \
+  apt-get -qq update && \
+# dependencies cleanup
+  apt-get -qq -y purge \
+    $(diff --changed-group-format='%>' --unchanged-group-format='' /tmp/dependencies.pre /tmp/dependencies.post | xargs) \
+    > /dev/null 2>&1 && \
+# mongodb
+  install --directory --owner=root --group=root --mode=0755 /data/mongodb && \
+  apt-get -qq -y --no-install-recommends install \
+    mongodb-org-server \
+    > /dev/null 2>&1 && \
+  sed -i '/systemLog/,/^$/ s/^/##/' /etc/mongod.conf && \
+# pritunl
+  apt-get -qq -y --no-install-recommends install \
+    iptables \
+    iputils-ping \
+    openssl \
+    openvpn \
+    pritunl \
+    procps \
+    > /dev/null 2>&1 && \
+  sed -i -e 's/utils.rand_str.*/DEFAULT_PASSWORD/' /usr/lib/pritunl/lib/python2.7/site-packages/pritunl/auth/administrator.py && \
+  pritunl set-mongodb 'mongodb://127.0.0.1:27017/pritunl' && \
+  find /usr/lib -depth \( \( -type d -a \( -name test -o -name tests \) \) -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \) -exec rm -rf '{}' + && \
+# system settings
+  install --directory --owner=root --group=root --mode=0755 /build/run/systemd && \
+  echo 'docker' > /build/run/systemd/container && \
+# system cleanup
+  apt-get clean && \
+  rm -rf /usr/share/info/* && \
+  rm -rf /usr/share/locale/* && \
+  rm -rf /usr/share/man/* && \
+  rm -rf /var/cache/apt/* && \
+  rm -rf /var/lib/apt/lists/* && \
+  rm -rf /var/log/* && \
+  rm -rf /root/.??* && \
+  rm -rf /tmp/.??* && \
+  find /usr/share/doc -mindepth 1 -not -name copyright -not -type d -delete && \
+  find /usr/share/doc -mindepth 1 -type d -empty -delete && \
+  find /var/cache -type f -delete
 
-EXPOSE 1194
-EXPOSE 443
-EXPOSE 80
-
-ENTRYPOINT ["/usr/bin/start-pritunl.sh"]
-
-CMD ["/usr/bin/tail", "-f", "/var/log/pritunl.log"]
+ENTRYPOINT ["/usr/bin/entrypoint"]
