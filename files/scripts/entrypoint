@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# Shell script to start the Pritunl Docker image.
+#
+# Copyright 2019, Tarbase. All Rights Reserved
+#   Author: Frederico Martins <http://github.com/fscm>
+#
+
+set -e
+
+if ! [ -z "$1" ]; then
+  exec "$@"
+  exit 0
+fi
+
+MONGODB_DATA="/data/mongodb"
+
+if [ -z "$MONGODB_URI" ]; then
+  echo "[INFO] Starting local MongoDB..."
+  # Create data dir (if needed)
+  if ! [ -d ${MONGODB_DATA} ]; then
+    mkdir -m 0755 ${MONGODB_DATA}
+  fi
+  # start the db
+  mongod --bind_ip '127.0.0.1' --dbpath "${MONGODB_DATA}" &
+else
+  echo "[INFO] Setting MongoDB URI..."
+  #validate url
+  if [[ "${MONGODB_URI}" =~ ^((mongodb)://)?(([0-9a-zA-Z]+:[0-9a-zA-Z]+)@)?([0-9a-zA-Z\.\-]+)(:([0-9]+))?/([0-9a-zA-Z\.\-]+)(\?[=\&0-9a-zA-Z]+)?$ ]]; then
+    MONGODB_URI_PROTO=${BASH_REMATCH[2]:-mongodb}
+    MONGODB_URI_CREDENTIALS=${BASH_REMATCH[3]}
+    MONGODB_URI_ADDRESS=${BASH_REMATCH[5]}
+    MONGODB_URI_PORT=${BASH_REMATCH[7]:-27017}
+    MONGODB_URI_DB=${BASH_REMATCH[8]}
+    MONGODB_URI_OPTIONS=${BASH_REMATCH[9]}
+  else
+    echo >&2 "[ERROR] Invalid MongoDB URI."
+    exit 1
+  fi
+  # set the mongo_uri
+  pritunl set-mongodb "${MONGODB_URI_PROTO}://${MONGODB_URI_CREDENTIALS}${MONGODB_URI_ADDRESS}:${MONGODB_URI_PORT}/${MONGODB_URI_DB}${MONGODB_URI_OPTIONS}"
+fi
+
+echo "[INFO] Starting Pritunl..."
+# start pritunl
+pritunl start
+
+exit 0

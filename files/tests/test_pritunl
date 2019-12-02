@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# Shell script to start the Pritunl Docker image.
+#
+# Copyright 2019, Tarbase. All Rights Reserved
+#   Author: Frederico Martins <http://github.com/fscm>
+#
+
+echo -n "=== TEST === Check if iptables is installed... "
+iptables --version &>/dev/null
+if [[ "$?" -eq "0" ]]; then
+  echo 'OK'
+else
+  echo 'Failed'
+  exit 1
+fi
+
+echo -n "=== TEST === Check if OpenSSL is installed... "
+openssl version &>/dev/null
+if [[ "$?" -eq "0" ]]; then
+  echo 'OK'
+else
+  echo 'Failed'
+  exit 2
+fi
+
+echo -n "=== TEST === Check if OpenVPN is installed... "
+openvpn --show-ciphers &>/dev/null
+if [[ "$?" -eq "0" ]]; then
+  echo 'OK'
+else
+  echo 'Failed'
+  exit 3
+fi
+
+echo -n "=== TEST === Check if Pritunl is installed... "
+pritunl version &>/dev/null
+if [[ "$?" -eq "0" ]]; then
+  echo 'OK'
+else
+  echo 'Failed'
+  exit 4
+fi
+
+exit 0
